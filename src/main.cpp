@@ -49,7 +49,11 @@ int main(int argc, char *argv[]) {
     try {
         std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
         cv::VideoCapture cap;
-        std::string inputCapName = argv[1];
+        std::string inputCapName;
+        if (argc > 1)
+            inputCapName = argv[1];
+        else 
+            inputCapName = "cam";
         if (!(inputCapName == "cam" ? cap.open(0) : cap.open(inputCapName))) {
             throw std::logic_error("Cannot open input file or camera: " + inputCapName);
         }
