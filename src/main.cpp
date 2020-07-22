@@ -44,7 +44,6 @@
 using namespace InferenceEngine;
 using namespace gaze_estimation;
 
-
 int main(int argc, char *argv[]) {
     try {
         std::cout << "InferenceEngine: " << GetInferenceEngineVersion() << std::endl;
@@ -91,6 +90,7 @@ int main(int argc, char *argv[]) {
         int countR = 0, countL = 0;
         int countTR = 0, countTL = 0;
         int countBR = 0, countBL = 0;
+        int scale = 255;
         do {
             if (flipImage) {
                 cv::flip(frame, frame, 1);
@@ -108,34 +108,34 @@ int main(int argc, char *argv[]) {
             for (auto& inferenceResult : inferenceResults) {
                 cv::Point2f gazeAngles;
                 gazeVectorToGazeAngles(inferenceResult.gazeVector, gazeAngles);
-                of << gazeAngles.x << "; " << gazeAngles.y << std::endl;
+                of << inferenceResult.gazeVector.x << "; " << inferenceResult.gazeVector.y << std::endl;
 
-                if (gazeAngles.y < -10 && gazeAngles.x < -20) countBR++;
-                else countBR = 0;
+                if (inferenceResult.gazeVector.y < -0.3 && inferenceResult.gazeVector.x < -0.3) countBR = 255;// cv::min(countBR + 17, 255);
+                else countBR = cv::max(countBR - 5, 0);
 
-                if (gazeAngles.y > 10 && gazeAngles.x < -20) countTR++;
-                else countTR = 0;
+                if (inferenceResult.gazeVector.y > 0.3 && inferenceResult.gazeVector.x < -0.3) countTR = 255;//cv::min(countTR + 17, 255);
+                else countTR = cv::max(countTR - 5, 0);
 
-                if (gazeAngles.y > -10 && gazeAngles.y < 10 && gazeAngles.x < -20) countR++;
-                else countR = 0;
+                if (inferenceResult.gazeVector.y > -0.3 && inferenceResult.gazeVector.y < 0.3 && inferenceResult.gazeVector.x < -0.3) countR = 255;// cv::min(countR + 17, 255);
+                else countR = cv::max(countR - 5, 0);
 
-                if (gazeAngles.y < -10 && gazeAngles.x > 20) countBL++;
-                else countBL = 0;
+                if (inferenceResult.gazeVector.y < -0.3 && inferenceResult.gazeVector.x > 0.3) countBL = 255;// cv::min(countBL + 17, 255);
+                else countBL = cv::max(countBL - 5, 0);
 
-                if (gazeAngles.y > 10 && gazeAngles.x > 20) countTL++;
-                else countTL = 0;
+                if (inferenceResult.gazeVector.y > 0.3 && inferenceResult.gazeVector.x > 0.3) countTL = 255;// cv::min(countTL + 17, 255);
+                else countTL = cv::max(countTL - 5, 0);
 
-                if (gazeAngles.y > -10 && gazeAngles.y < 10 && gazeAngles.x > 20) countL++;
-                else countL = 0;
+                if (inferenceResult.gazeVector.y > -0.3 && inferenceResult.gazeVector.y < 0.3 && inferenceResult.gazeVector.x > 0.3) countL = 255;// cv::min(countL + 17, 255);
+                else countL = cv::max(countL - 5, 0);
 
             }
 
-            if (countR == 10) std::cout << "right" << std::endl;
-            else if (countL == 10) std::cout << "left" << std::endl;
-            else if (countTR == 10) std::cout << "top right" << std::endl;
-            else if (countBR == 10) std::cout << "bottom right" << std::endl;
-            else if (countTL == 10) std::cout << "top left" << std::endl;
-            else if (countBL == 10) std::cout << "bottom left" << std::endl;
+            if (countR > 10) std::cout << "right" << std::endl;
+            if (countL > 10) std::cout << "left" << std::endl;
+            if (countTR > 10) std::cout << "top right" << std::endl;
+            if (countBR > 10) std::cout << "bottom right" << std::endl;
+            if (countTL > 10) std::cout << "top left" << std::endl;
+            if (countBL > 10) std::cout << "bottom left" << std::endl;
 
             // Display the results
             for (auto const& inferenceResult : inferenceResults) {
@@ -144,11 +144,56 @@ int main(int argc, char *argv[]) {
             putTimingInfoOnFrame(frame, overallTimeAverager.getAveragedValue(),
                                  inferenceTimeAverager.getAveragedValue());
 
+            int height = frame.size().height;
+            int width = frame.size().width;
+            cv::Rect gazeSubframe(width - width/4, height - height/3, width/4, height/3);
+            cv::Mat roiSubframe = frame(gazeSubframe);
+            //roiSubframe.setTo(cv::Scalar(120, 120, 120));
+            if (countR != 0) {
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 0.0, 30.0, cv::Scalar(countR, 0, 0), -1);
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 330.0, 360.0, cv::Scalar(countR, 0, 0), -1);
+            } else { 
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 0.0, 30.0, cv::Scalar(countR, 0, 0));
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 330.0, 360.0, cv::Scalar(countR, 0, 0));
+            }
+
+            if (countBR != 0)
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 30.0, 90.0, cv::Scalar(0, countBR, 0), -1);
+            else
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 30.0, 90.0, cv::Scalar(0, countBR, 0));
+
+            if (countBL != 0)
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 90.0, 150.0, cv::Scalar(0, 0, countBL), -1);
+            else 
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 90.0, 150.0, cv::Scalar(0, 0, countBL));
+
+            if (countL != 0)
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 150.0, 210.0, cv::Scalar(0, countL, countL), -1);
+            else 
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 150.0, 210.0, cv::Scalar(0, countL, countL));
+
+            if (countTL != 0)
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 210.0, 270.0, cv::Scalar(countTL, 0, countTL), -1);
+            else 
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 210.0, 270.0, cv::Scalar(0, countTL, countTL));
+
+            if (countTR != 0)
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 270.0, 330.0, cv::Scalar(countTR, countTR, 0), -1);
+            else 
+                cv::ellipse(frame, cv::Point(7*width/8, 5*height/6), cv::Size(width/8, height/6), 0.0, 270.0, 330.0, cv::Scalar(countTR, countTR, 0));
+            
+            
+            
+            
+            
             char key = static_cast<char>(cv::waitKey(30));
+            if (scale == 1) scale = 255;
             if (key == 27)
                 break;
-            else if (key == 'f')
+            else if (key == 'f') {
                 flipImage = !flipImage;
+                scale -= 1;
+            }
             imshow("frame", frame);
         } while (cap.read(frame));   
     }
