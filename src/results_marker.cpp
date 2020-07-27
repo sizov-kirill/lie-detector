@@ -25,105 +25,143 @@ ResultsMarker::ResultsMarker(bool showFaceBoundingBox,
                              showLandmarks(showLandmarks),
                              showGaze(showGaze) {
 }
+    std::vector<cv::Point>dir_x(1000);
+    std::vector<cv::Point>dir_y(1000);
+    int c = 1, step = 1;
+    cv::Mat back = cv::imread("..\\data\\bground.png");
+    cv::Mat img;
+    void ResultsMarker::mark(cv::Mat& image,
+        const FaceInferenceResults& faceInferenceResults) const {
 
-void ResultsMarker::mark(cv::Mat& image,
-                         const FaceInferenceResults& faceInferenceResults) const {
-    auto faceBoundingBox = faceInferenceResults.faceBoundingBox;
-    auto faceBoundingBoxWidth = faceBoundingBox.width;
-    auto faceBoundingBoxHeight = faceBoundingBox.height;
-    auto scale =  0.002 * faceBoundingBoxWidth;
-    cv::Point tl = faceBoundingBox.tl();
+        auto faceBoundingBox = faceInferenceResults.faceBoundingBox;
+        auto faceBoundingBoxWidth = faceBoundingBox.width;
+        auto faceBoundingBoxHeight = faceBoundingBox.height;
+        auto scale = 0.002 * faceBoundingBoxWidth;
+        cv::Point tl = faceBoundingBox.tl();
+        img = back;
+        cv::putText(img, //target image
+            "Right direction", //text
+            cv::Point(500, 60),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(255, 0, 0),
+            2);
+        cv::putText(img, //target image
+            "Gaze up", //text
+            cv::Point(500, 100),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(0, 0, 255),
+            2);
+        cv::putText(img, //target image
+            "Gaze up right", //text
+            cv::Point(500, 140),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(33, 0, 66),
+            2);
+        cv::putText(img, //target image
+            "Left direction", //text
+            cv::Point(500, 600),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(255, 0, 0),
+            2);
+        cv::putText(img, //target image
+            "Gaze down", //text
+            cv::Point(500, 640),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(0, 0, 255),
+            2);
+        cv::putText(img, //target image
+            "Gaze down left", //text
+            cv::Point(500, 680),
+            cv::FONT_HERSHEY_DUPLEX,
+            1.0,
+            CV_RGB(33, 0, 66),
+            2);
 
-    if (showFaceBoundingBox) {
-        cv::rectangle(image, faceInferenceResults.faceBoundingBox, cv::Scalar::all(255), 1);
-        cv::putText(image,
-                    cv::format("Detector confidence: %0.2f",
-                               static_cast<double>(faceInferenceResults.faceDetectionConfidence)),
-                    cv::Point(static_cast<int>(tl.x),
-                              static_cast<int>(tl.y - 5. * faceBoundingBoxWidth / 200.)),
-                    cv::FONT_HERSHEY_COMPLEX, scale, cv::Scalar::all(255), 1);
+        if (showFaceBoundingBox) {
+            cv::rectangle(image, faceInferenceResults.faceBoundingBox, cv::Scalar::all(255), 1);
+            cv::putText(image,
+                cv::format("Detector confidence: %0.2f",
+                    static_cast<double>(faceInferenceResults.faceDetectionConfidence)),
+                cv::Point(static_cast<int>(tl.x),
+                    static_cast<int>(tl.y - 5. * faceBoundingBoxWidth / 200.)),
+                cv::FONT_HERSHEY_COMPLEX, scale, cv::Scalar::all(255), 1);
+        }
+
+
+        if (showGaze) {
+            auto gazeVector = faceInferenceResults.gazeVector;
+
+            cv::Point2f gazeAngles;
+            cv::Point3f in = gazeVector;
+            cv::Point3f out;
+            float yaw = faceInferenceResults.headPoseAngles.x;
+            out.x = in.x * cos(yaw*M_PI/180.0) + in.z * sin(yaw*M_PI/180.0);
+            out.y = in.y;
+            out.z = -in.x * sin(yaw*M_PI/180.0) + in.z * cos(yaw*M_PI/180.0);
+            gazeVectorToGazeAngles(out, gazeAngles);
+           
+
+            if (c < 1000)
+            {
+                if (abs(gazeAngles.x) > 16)
+                {
+                    dir_x.push_back(cv::Point(step + 5, 5 * (gazeAngles.x) + 400));
+                    c++;
+                    step++;
+                }
+               
+                if (abs(gazeAngles.y) > 8)
+                {
+                    dir_y.push_back(cv::Point(step + 5, 5 * (gazeAngles.y) + 400));
+                    c++;
+                    step++;
+                }              
+            }
+
+            if (c >= 1000)
+            {
+
+                cv::Point tmp = dir_x.back();
+                dir_x.clear();
+                c = 0;
+                step++;
+                dir_x.push_back(tmp);
+                if (abs(gazeAngles.x) > 16)
+                {
+                    dir_x.push_back(cv::Point(step + 5, 5 * (gazeAngles.x) + 400));
+                }
+                tmp = dir_y.back();
+                dir_y.clear();
+                c = 0;
+                step++;
+                dir_y.push_back(tmp);
+                if (abs(gazeAngles.y) > 8)
+                {
+                    dir_y.push_back(cv::Point(step + 5, 5 * (gazeAngles.y) + 400));
+                }
+            }
+            img = back;
+            polylines(img, dir_x, false, cv::Scalar(0, 0, 255), 2);
+            polylines(img, dir_y, false, cv::Scalar(255, 0, 0), 2);
+            cv::namedWindow("Graphics", 0);
+            cv::resizeWindow("Graphics", 600, 500);
+            cv::imshow("Graphics", img);
+
+            cv::Point p1(0, 400), p2(1000, 400), p3(2, 0), p4(2, 1000);
+            cv::Scalar colorLine(0, 0, 0);
+            int thicknessLine = 2;
+            cv::line(img, p1, p2, colorLine, thicknessLine);
+            cv::line(img, p3, p4, colorLine, thicknessLine);
+        }
     }
 
-    if (showHeadPoseAxes) {
-        auto yaw = static_cast<double>(faceInferenceResults.headPoseAngles.x);
-        auto pitch = static_cast<double>(faceInferenceResults.headPoseAngles.y);
-        auto roll = static_cast<double>(faceInferenceResults.headPoseAngles.z);
-
-        auto sinY = std::sin(yaw * M_PI / 180.0);
-        auto sinP = std::sin(pitch * M_PI / 180.0);
-        auto sinR = std::sin(roll * M_PI / 180.0);
-
-        auto cosY = std::cos(yaw * M_PI / 180.0);
-        auto cosP = std::cos(pitch * M_PI / 180.0);
-        auto cosR = std::cos(roll * M_PI / 180.0);
-
-        auto axisLength = 0.4 * faceBoundingBoxWidth;
-        auto xCenter = faceBoundingBox.x + faceBoundingBoxWidth / 2;
-        auto yCenter = faceBoundingBox.y + faceBoundingBoxHeight / 2;
-
-        // center to right
-        cv::line(image, cv::Point(xCenter, yCenter),
-                 cv::Point(static_cast<int>(xCenter + axisLength * (cosR * cosY + sinY * sinP * sinR)),
-                           static_cast<int>(yCenter + axisLength * cosP * sinR)),
-                 cv::Scalar(0, 0, 255), 2);
-        // center to top
-        cv::line(image, cv::Point(xCenter, yCenter),
-                 cv::Point(static_cast<int>(xCenter + axisLength * (cosR * sinY * sinP + cosY * sinR)),
-                           static_cast<int>(yCenter - axisLength * cosP * cosR)),
-                 cv::Scalar(0, 255, 0), 2);
-        // center to forward
-        cv::line(image, cv::Point(xCenter, yCenter),
-                 cv::Point(static_cast<int>(xCenter + axisLength * sinY * cosP),
-                           static_cast<int>(yCenter + axisLength * sinP)),
-                 cv::Scalar(255, 0, 255), 2);
-
-        cv::putText(image,
-                    cv::format("head pose: (y=%0.0f, p=%0.0f, r=%0.0f)", std::round(yaw), std::round(pitch), std::round(roll)),
-                    cv::Point(static_cast<int>(faceBoundingBox.tl().x),
-                              static_cast<int>(faceBoundingBox.br().y + 5. * faceBoundingBoxWidth / 100.)),
-                    cv::FONT_HERSHEY_PLAIN, scale * 2, cv::Scalar(255, 255, 255), 1);
-    }
-
-    if (showLandmarks) {
-        int lmRadius = static_cast<int>(0.01 * faceBoundingBoxWidth + 1);
-        for (auto const& point : faceInferenceResults.faceLandmarks)
-            cv::circle(image, point, lmRadius, cv::Scalar(0, 255, 255), -1);
-    }
-
-    if (showGaze) {
-        auto gazeVector = faceInferenceResults.gazeVector;
-
-        double arrowLength = 0.4 * faceBoundingBoxWidth;
-        cv::Point2f gazeArrow;
-        gazeArrow.x = gazeVector.x;
-        gazeArrow.y = -gazeVector.y;
-
-        gazeArrow = arrowLength * gazeArrow;
-
-        // Draw eyes bounding boxes
-        cv::rectangle(image, faceInferenceResults.leftEyeBoundingBox, cv::Scalar::all(255), 1);
-        cv::rectangle(image, faceInferenceResults.rightEyeBoundingBox, cv::Scalar::all(255), 1);
-
-        cv::arrowedLine(image,
-            faceInferenceResults.leftEyeMidpoint,
-            faceInferenceResults.leftEyeMidpoint + gazeArrow, cv::Scalar(255, 0, 0), 2);
-
-        cv::arrowedLine(image,
-            faceInferenceResults.rightEyeMidpoint,
-            faceInferenceResults.rightEyeMidpoint + gazeArrow, cv::Scalar(255, 0, 0), 2);
-
-        cv::Point2f gazeAngles;
-
-        gazeVectorToGazeAngles(faceInferenceResults.gazeVector, gazeAngles);
-
-        cv::putText(image,
-                    cv::format("gaze angles: (h=%0.0f, v=%0.0f)",
-                               static_cast<double>(std::round(gazeAngles.x)),
-                               static_cast<double>(std::round(gazeAngles.y))),
-                    cv::Point(static_cast<int>(faceBoundingBox.tl().x),
-                              static_cast<int>(faceBoundingBox.br().y + 12. * faceBoundingBoxWidth / 100.)),
-                    cv::FONT_HERSHEY_PLAIN, scale * 2, cv::Scalar::all(255), 1);
-    }
+void ResultsMarker::save() {
+        cv::imwrite("Graphic.jpg", img);
 }
 
 void ResultsMarker::toggle(char key) {

@@ -18,6 +18,7 @@ public:
                   bool showGaze);
     void mark(cv::Mat& image, const FaceInferenceResults& faceInferenceResults) const;
     void toggle(char key);
+    void save();
 
 private:
     bool showFaceBoundingBox;
